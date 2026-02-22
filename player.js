@@ -14,10 +14,10 @@ const FLOOR_GAIN = dbToGain(FLOOR_DB);
 // Presets in dB (committed)
 const PRESETS_DB = {
   "Skeleton":   { perc: 0,   mass: -70, vox: -100 },
-  "Narrator":   { perc: -100, mass: -100, vox: 0   },
+  "Narrator":   { perc: -100, mass: -100, vox: -6   },
   "Flesh":      { perc: -100, mass: 0,   vox: -100 },
-  "Pulse":      { perc: 0,   mass: -100, vox: -6  },
-  "Full Fruit": { perc: 0,   mass: 0,   vox: 0   },
+  "Pulse":      { perc: -100,   mass: 0, vox: -6  },
+  "Full Fruit": { perc: 0,   mass: 0,   vox: -6   },
 };
 
 const PRESETS = Object.fromEntries(
