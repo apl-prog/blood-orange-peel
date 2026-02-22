@@ -1,9 +1,9 @@
 // Blood Orange Peel: 3 stems, 5 preset mixes, Web Audio, full preload, smooth ramps.
 
 const FILES = {
-  perc: "audio/percussion.m4a",
-  mass: "audio/mass.m4a",
-  vox: "audio/voxgtr.m4a",
+  perc: "Audio/percussion.m4a",
+  mass: "Audio/mass.m4a",
+  vox: "Audio/voxgtr.m4a",
 };
 
 // Settings
