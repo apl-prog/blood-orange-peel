@@ -1,24 +1,26 @@
-// Blood Orange Peel: 3 stems, 5 preset mixes, Web Audio, full preload, smooth ramps.
+// player.js
+// Experimental Mix Apparatus: 3 stems, 5 preset mixes, Web Audio, full preload, smooth ramps.
 
 const FILES = {
   perc: "audio/percussion.m4a",
   mass: "audio/mass.m4a",
-  vox: "audio/voxgtr.m4a",
+  vox:  "audio/voxgtr.m4a",
 };
 
 // Settings
 const RAMP_SECONDS = 0.05;
-const FLOOR_DB = -100;
-const FLOOR_GAIN = dbToGain(FLOOR_DB);
+const FLOOR_DB = -120; // allows true mute (e.g., vocals in Skeleton)
 
 // Presets in dB (committed)
 const PRESETS_DB = {
-  "Skeleton":   { perc: 0,   mass: -70, vox: -100 },
-  "Narrator":   { perc: -100, mass: -100, vox: -6   },
-  "Flesh":      { perc: -100, mass: 0,   vox: -100 },
-  "Pulse":      { perc: -10,   mass: 0, vox: -75  },
-  "Full Fruit": { perc: 0,   mass: 0,   vox: -6   },
+  "Skeleton":   { perc: 0,   mass: -20, vox: -120 }, // vox drops out
+  "Narrator":   { perc: -14, mass: -16, vox: 0   },
+  "Flesh":      { perc: -10, mass: 0,   vox: -10 },
+  "Pulse":      { perc: 0,   mass: -10, vox: -8  },
+  "Full Fruit": { perc: 0,   mass: 0,   vox: 0   },
 };
+
+const FLOOR_GAIN = dbToGain(FLOOR_DB);
 
 const PRESETS = Object.fromEntries(
   Object.entries(PRESETS_DB).map(([name, v]) => [name, {
@@ -46,14 +48,13 @@ const enterBtn = document.getElementById("enterBtn");
 const playPauseBtn = document.getElementById("playPauseBtn");
 const nowEl = document.getElementById("now");
 const orangeLabel = document.getElementById("orangeLabel");
-const mixBtns = Array.from(document.querySelectorAll(".mixBtn"));
 const wedges = Array.from(document.querySelectorAll(".wedge"));
-const orangeSvg = document.getElementById("orange");
+
+const wrapEl = document.getElementById("wrap");
+const specEl = document.getElementById("spec");
 
 enterBtn.addEventListener("click", onEnter);
 playPauseBtn.addEventListener("click", togglePlay);
-
-mixBtns.forEach(btn => btn.addEventListener("click", () => setState(btn.dataset.state)));
 wedges.forEach(w => w.addEventListener("click", () => setState(w.dataset.state)));
 
 function setStatus(msg) {
@@ -68,10 +69,9 @@ function setState(name) {
   applyPreset(name);
 
   // UI reflect
-  orangeLabel.textContent = name;
+  orangeLabel.textContent = name.toUpperCase();
   nowEl.textContent = `State: ${name}`;
 
-  mixBtns.forEach(b => b.classList.toggle("active", b.dataset.state === name));
   wedges.forEach(w => w.classList.toggle("active", w.dataset.state === name));
 }
 
@@ -86,9 +86,7 @@ function applyPreset(name) {
 function rampGain(param, target) {
   const t0 = audioCtx.currentTime;
   const t1 = t0 + RAMP_SECONDS;
-  // Avoid clicks by cancelling and ramping
   param.cancelScheduledValues(t0);
-  // Set current value immediately (helps after cancel)
   param.setValueAtTime(param.value, t0);
   param.linearRampToValueAtTime(target, t1);
 }
@@ -97,20 +95,19 @@ async function onEnter() {
   if (isReady) return;
 
   try {
-    setStatus("Initializing audio...");
+    setStatus("INITIALIZING");
     enterBtn.disabled = true;
 
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Preload and decode
-    setStatus("Loading stems...");
+    setStatus("LOADING");
     buffers = {
       perc: await fetchDecode(FILES.perc),
       mass: await fetchDecode(FILES.mass),
       vox:  await fetchDecode(FILES.vox),
     };
 
-    // Build graph (but do not start)
+    // Build graph
     master = audioCtx.createGain();
     master.gain.value = 1.0;
     master.connect(audioCtx.destination);
@@ -127,18 +124,20 @@ async function onEnter() {
 
     isReady = true;
 
-    // Enable controls
+    // Terminal activation feel + spec panel
+    wrapEl.classList.remove("standby");
+    wrapEl.classList.add("active");
+    specEl.textContent = `SESSION: ${makeSessionId()} · CHANNELS: 3 · CONFIGS: 5 · STATUS: ACTIVE`;
+
     playPauseBtn.disabled = false;
-    mixBtns.forEach(b => (b.disabled = false));
 
-    // Default state UI + gains (before play)
     setState("Full Fruit");
-
-    setStatus("Loaded. Tap Play.");
+    setStatus("ACTIVE");
   } catch (err) {
     console.error(err);
-    setStatus("Error loading audio. See console.");
+    setStatus("ERROR");
     enterBtn.disabled = false;
+    if (specEl) specEl.textContent = "SESSION: ---- · CHANNELS: 3 · CONFIGS: 5 · STATUS: ERROR";
   }
 }
 
@@ -150,7 +149,6 @@ async function fetchDecode(url) {
 }
 
 function buildSources() {
-  // Create fresh sources every play (AudioBufferSourceNode is one-shot)
   const sPerc = audioCtx.createBufferSource();
   const sMass = audioCtx.createBufferSource();
   const sVox  = audioCtx.createBufferSource();
@@ -163,14 +161,13 @@ function buildSources() {
   sMass.connect(gains.mass);
   sVox.connect(gains.vox);
 
-  // When any ends, stop state
   sPerc.onended = () => {
-    // If the track ended naturally (not paused), reset.
     if (isPlaying) {
       isPlaying = false;
       offset = 0;
       playPauseBtn.textContent = "Play";
-      setStatus("Finished.");
+      setStatus("FINISHED");
+      if (specEl) specEl.textContent = specEl.textContent.replace(/STATUS:\s*\w+/i, "STATUS: COMPLETE");
     }
   };
 
@@ -181,15 +178,13 @@ function togglePlay() {
   if (!isReady) return;
 
   if (!isPlaying) {
-    // Start / resume
     if (audioCtx.state === "suspended") audioCtx.resume();
 
     buildSources();
 
-    const when = audioCtx.currentTime + 0.02; // tiny scheduling offset
+    const when = audioCtx.currentTime + 0.02;
     startAt = when - offset;
 
-    // Ensure current preset is applied (in case user clicked before play)
     applyPreset(currentState);
 
     sources.perc.start(when, offset);
@@ -198,14 +193,15 @@ function togglePlay() {
 
     isPlaying = true;
     playPauseBtn.textContent = "Pause";
-    setStatus("Playing.");
+    setStatus("RUNNING");
+    if (specEl) specEl.textContent = specEl.textContent.replace(/STATUS:\s*\w+/i, "STATUS: RUNNING");
   } else {
-    // Pause: stop sources and store offset
     offset = audioCtx.currentTime - startAt;
     safeStopAll();
     isPlaying = false;
     playPauseBtn.textContent = "Play";
-    setStatus("Paused.");
+    setStatus("HOLD");
+    if (specEl) specEl.textContent = specEl.textContent.replace(/STATUS:\s*\w+/i, "STATUS: HOLD");
   }
 }
 
@@ -225,5 +221,18 @@ function clampGain(g) {
   return Math.max(FLOOR_GAIN, Math.min(1.0, g));
 }
 
-// Initialize UI active state (visual only)
-setState("Full Fruit");
+function makeSessionId() {
+  const hex = Math.random().toString(16).slice(2, 8).toUpperCase();
+  const d = new Date();
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yy}${mm}${dd}-${hex}`;
+}
+
+// Default visual state before entering
+(function initUI() {
+  orangeLabel.textContent = "FULL FRUIT";
+  nowEl.textContent = "State: Full Fruit";
+  wedges.forEach(w => w.classList.toggle("active", w.dataset.state === "Full Fruit"));
+})();
