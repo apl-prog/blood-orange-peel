@@ -15,7 +15,7 @@ const FLOOR_DB = -120; // allows true mute (e.g., vocals in Skeleton)
 const PRESETS_DB = {
   "Skeleton":   { perc: 0,   mass: -100, vox: -120 }, // vox drops out
   "Narrator":   { perc: -120, mass: -100, vox: -6   },
-  "Flesh":      { perc: -10, mass: 0,   vox: -120 },
+  "Flesh":      { perc: -100, mass: 0,   vox: -120 },
   "Pulse":      { perc: -5,   mass: -0, vox: -120  },
   "Full Fruit": { perc: 0,   mass: 0,   vox: -6   },
 };
