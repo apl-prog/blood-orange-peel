@@ -1,5 +1,6 @@
 // player.js — Experimental Mix Apparatus
 // 3 stems, 6 states total (5 outer + center Full Fruit), Web Audio preload, smooth ramps.
+// Adds an "Archive" FX bus (delay + lowpass + mild drive) only when state === "Archive".
 
 const FILES = {
   perc: "audio/percussion.m4a",
@@ -12,14 +13,23 @@ const RAMP_SECONDS = 0.05;
 const FLOOR_DB = -120; // allows true mute
 const FLOOR_GAIN = dbToGain(FLOOR_DB);
 
-// Your presets in dB (use your values; I included Archive + Full Fruit)
+// Archive FX tuning (subtle by default)
+const FX = {
+  delayTime: 0.18,     // seconds
+  feedback: 0.22,      // 0..0.9
+  wet: 0.18,           // 0..1 (how much FX you hear in Archive)
+  lowpassHz: 1800,     // Hz
+  drive: 0.02,         // 0..0.10 (subtle saturation)
+};
+
+// Presets in dB (edit freely)
 const PRESETS_DB = {
   "Skeleton":   { perc: 0,    mass: -100, vox: -120 },
   "Narrator":   { perc: -120, mass: -100, vox: -6   },
   "Flesh":      { perc: -100, mass: 0,    vox: -120 },
   "Pulse":      { perc: -5,   mass: 0,    vox: -120 },
-  "Archive":    { perc: -1,  mass: -120,  vox: -5  }, // new outer state (tweak as desired)
-  "Full Fruit": { perc: 0,    mass: 0,    vox: -2   }, // center core
+  "Archive":    { perc: -12,  mass: -12,  vox: -18  }, // outer state w/ FX
+  "Full Fruit": { perc: 0,    mass: 0,    vox: -1  }, // center core
 };
 
 const PRESETS = Object.fromEntries(
@@ -35,6 +45,9 @@ let buffers = null;
 let sources = null;
 let gains = null;
 let master = null;
+
+// FX nodes
+let fx = null; // { dryGain, wetGain, delay, feedback, filter, shaper }
 
 let isReady = false;
 let isPlaying = false;
@@ -72,6 +85,12 @@ function setState(name) {
   stateReadoutEl.textContent = name.toUpperCase();
   nowEl.textContent = `State: ${name}`;
 
+  // Archive FX on/off
+  if (fx) {
+    const wetTarget = (name === "Archive") ? FX.wet : 0.0;
+    rampGain(fx.wetGain.gain, wetTarget);
+  }
+
   controls.forEach(el => el.classList.toggle("active", el.dataset.state === name));
 }
 
@@ -107,22 +126,67 @@ async function onEnter() {
       vox:  await fetchDecode(FILES.vox),
     };
 
+    // Master
     master = audioCtx.createGain();
     master.gain.value = 1.0;
     master.connect(audioCtx.destination);
 
+    // FX bus: dry + wet (delay + lowpass + mild drive)
+    const dryGain = audioCtx.createGain();
+    const wetGain = audioCtx.createGain();
+    dryGain.gain.value = 1.0;
+    wetGain.gain.value = 0.0; // default off
+
+    const delay = audioCtx.createDelay(1.0);
+    delay.delayTime.value = FX.delayTime;
+
+    const feedback = audioCtx.createGain();
+    feedback.gain.value = FX.feedback;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = FX.lowpassHz;
+    filter.Q.value = 0.7;
+
+    const shaper = audioCtx.createWaveShaper();
+    shaper.curve = makeSoftClipCurve(FX.drive);
+    shaper.oversample = "2x";
+
+    // feedback loop: delay -> feedback -> delay
+    delay.connect(feedback);
+    feedback.connect(delay);
+
+    // wet chain: delay -> filter -> shaper -> wetGain
+    delay.connect(filter);
+    filter.connect(shaper);
+    shaper.connect(wetGain);
+
+    // to master
+    dryGain.connect(master);
+    wetGain.connect(master);
+
+    fx = { dryGain, wetGain, delay, feedback, filter, shaper };
+
+    // Stem gain nodes
     gains = {
       perc: audioCtx.createGain(),
       mass: audioCtx.createGain(),
       vox:  audioCtx.createGain(),
     };
 
-    gains.perc.connect(master);
-    gains.mass.connect(master);
-    gains.vox.connect(master);
+    // Dry routing
+    gains.perc.connect(fx.dryGain);
+    gains.mass.connect(fx.dryGain);
+    gains.vox.connect(fx.dryGain);
+
+    // FX send (post-gain tap)
+    gains.perc.connect(fx.delay);
+    gains.mass.connect(fx.delay);
+    gains.vox.connect(fx.delay);
 
     isReady = true;
 
+    // Terminal activation + spec
     wrapEl.classList.remove("standby");
     wrapEl.classList.add("active");
     specEl.textContent = `SESSION: ${makeSessionId()} · CHANNELS: 3 · CONFIGS: 5 · STATUS: ACTIVE`;
@@ -226,6 +290,19 @@ function makeSessionId() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yy}${mm}${dd}-${hex}`;
+}
+
+function makeSoftClipCurve(amount) {
+  // amount ~0.0 to 0.1 for subtle
+  const n = 44100;
+  const curve = new Float32Array(n);
+  const k = Math.max(0.0001, amount * 100);
+  const norm = Math.tanh(k);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = Math.tanh(k * x) / norm;
+  }
+  return curve;
 }
 
 // Default visuals before entering
