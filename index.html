@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -23,7 +22,7 @@
           class="orange"
           viewBox="0 0 300 300"
           role="img"
-          aria-label="Interactive orange with five wedges"
+          aria-label="Interactive orange with five wedges and a center core"
         >
           <defs>
             <radialGradient id="g" cx="50%" cy="45%" r="65%">
@@ -35,7 +34,7 @@
           <circle cx="150" cy="150" r="120" class="orange-base"></circle>
           <circle cx="150" cy="150" r="120" fill="url(#g)"></circle>
 
-          <!-- 5 wedge hit-areas. Each has data-state. -->
+          <!-- 5 wedge hit-areas (outer ring) -->
           <path class="wedge" data-state="Skeleton"
             d="M150 150 L150 30 A120 120 0 0 1 264 112 Z"></path>
           <path class="wedge" data-state="Narrator"
@@ -44,14 +43,15 @@
             d="M150 150 L221 251 A120 120 0 0 1 79 251 Z"></path>
           <path class="wedge" data-state="Pulse"
             d="M150 150 L79 251 A120 120 0 0 1 36 112 Z"></path>
-          <path class="wedge" data-state="Full Fruit"
+          <path class="wedge" data-state="Archive"
             d="M150 150 L36 112 A120 120 0 0 1 150 30 Z"></path>
 
-          <circle cx="150" cy="150" r="38" class="orange-center"></circle>
-          <text x="150" y="158" text-anchor="middle" class="orange-label" id="orangeLabel">
-            FULL FRUIT
-          </text>
+          <!-- Center core: Full Fruit -->
+          <circle cx="150" cy="150" r="38" class="orange-center" data-state="Full Fruit"></circle>
         </svg>
+
+        <!-- State readout lives outside the orange -->
+        <div class="stateReadout mono" id="stateReadout">FULL FRUIT</div>
 
         <div class="controlStrip">
           <button id="enterBtn" class="primary">Enter</button>
