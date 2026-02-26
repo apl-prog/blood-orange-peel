@@ -1,23 +1,23 @@
+<!-- index.html -->
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Blood Orange Peel</title>
+    <title>Experimental Mix Apparatus</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="wrap">
+    <main class="wrap standby" id="wrap">
       <header class="top">
         <div class="title">
-          <h1>Blood Orange</h1>
-          <p class="sub">Peel the mix. Five perspectives. Three stems.</p>
+          <h1>Experimental Mix Apparatus</h1>
+          <p class="sub">Desert Archive Terminal. Five configurations. Three channels.</p>
         </div>
-        <div class="status" id="status">Ready.</div>
+        <div class="status" id="status">STANDBY</div>
       </header>
 
       <section class="stage">
-        <!-- Minimal “orange” visual. Click wedges OR use buttons below. -->
         <svg
           id="orange"
           class="orange"
@@ -35,8 +35,7 @@
           <circle cx="150" cy="150" r="120" class="orange-base"></circle>
           <circle cx="150" cy="150" r="120" fill="url(#g)"></circle>
 
-          <!-- 5 wedge hit-areas (simple paths). Each has data-state. -->
-          <!-- Wedge geometry is approximate but works. -->
+          <!-- 5 wedge hit-areas. Each has data-state. -->
           <path class="wedge" data-state="Skeleton"
             d="M150 150 L150 30 A120 120 0 0 1 264 112 Z"></path>
           <path class="wedge" data-state="Narrator"
@@ -50,31 +49,24 @@
 
           <circle cx="150" cy="150" r="38" class="orange-center"></circle>
           <text x="150" y="158" text-anchor="middle" class="orange-label" id="orangeLabel">
-            Full Fruit
+            FULL FRUIT
           </text>
         </svg>
 
-        <div class="controls">
+        <div class="controlStrip">
           <button id="enterBtn" class="primary">Enter</button>
           <button id="playPauseBtn" class="ghost" disabled>Play</button>
-
-          <div class="mixRow" role="group" aria-label="Mix states">
-            <button class="mixBtn" data-state="Skeleton" disabled>Skeleton</button>
-            <button class="mixBtn" data-state="Narrator" disabled>Narrator</button>
-            <button class="mixBtn" data-state="Flesh" disabled>Flesh</button>
-            <button class="mixBtn" data-state="Pulse" disabled>Pulse</button>
-            <button class="mixBtn" data-state="Full Fruit" disabled>Full Fruit</button>
-          </div>
-
           <div class="hint">
-            Tip: On iPhone, tap <span class="mono">Enter</span> first (it unlocks audio).
+            Tap the orange to change state.
             <br />
-  If you hear nothing, turn off Silent Mode (ringer switch on).
+            If you hear nothing on iPhone, switch Silent Mode off.
+          </div>
         </div>
       </section>
 
       <footer class="foot">
         <div class="small mono" id="now">State: Full Fruit</div>
+        <div class="spec" id="spec">SESSION: ---- · CHANNELS: 3 · CONFIGS: 5 · STATUS: STANDBY</div>
       </footer>
     </main>
 
