@@ -18,8 +18,8 @@ const PRESETS_DB = {
   "Narrator":   { perc: -120, mass: -100, vox: -6   },
   "Flesh":      { perc: -100, mass: 0,    vox: -120 },
   "Pulse":      { perc: -5,   mass: 0,    vox: -120 },
-  "Archive":    { perc: -10,  mass: -120,  vox: -18  }, // new outer state (tweak as desired)
-  "Full Fruit": { perc: 0,    mass: 0,    vox: -6   }, // center core
+  "Archive":    { perc: -1,  mass: -120,  vox: -10  }, // new outer state (tweak as desired)
+  "Full Fruit": { perc: 0,    mass: 0,    vox: -2   }, // center core
 };
 
 const PRESETS = Object.fromEntries(
