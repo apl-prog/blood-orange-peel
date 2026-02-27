@@ -68,6 +68,8 @@ h1 { font-size: 22px; margin: 0; letter-spacing: 0.2px; }
   fill: rgba(178, 74, 50, 0.05);
   stroke: rgba(178, 74, 50, 0.22);
   stroke-width: 1;
+  shape-rendering: geometricPrecision;
+  vector-effect: non-scaling-stroke;
 }
 
 .wedge {
