@@ -1,6 +1,6 @@
 // player.js — Experimental Mix Apparatus
 // 3 stems, 6 states total (5 outer + center Full Fruit), Web Audio preload, smooth ramps.
-// Adds an "Archive" FX bus (delay + lowpass + mild drive) only when state === "Archive".
+// Adds an "Archive" FX bus (delay + highpass + lowpass + mild drive) only when state === "Archive".
 
 const FILES = {
   perc: "audio/percussion.m4a",
@@ -15,11 +15,12 @@ const FLOOR_GAIN = dbToGain(FLOOR_DB);
 
 // Archive FX tuning (subtle by default)
 const FX = {
-  delayTime: 0.05,     // seconds
-  feedback: 0.6,      // 0..0.9
+  delayTime: 0.18,     // seconds
+  feedback: 0.22,      // 0..0.9
   wet: 0.18,           // 0..1 (how much FX you hear in Archive)
-  lowpassHz: 1400,     // Hz
-  drive: 0.5,         // 0..0.10 (subtle saturation)
+  highpassHz: 250,     // Hz (new)
+  lowpassHz: 1800,     // Hz
+  drive: 0.02,         // 0..0.10 (subtle saturation)
 };
 
 // Presets in dB (edit freely)
@@ -28,8 +29,8 @@ const PRESETS_DB = {
   "Narrator":   { perc: -120, mass: -100, vox: -6   },
   "Flesh":      { perc: -100, mass: 0,    vox: -120 },
   "Pulse":      { perc: -5,   mass: 0,    vox: -120 },
-  "Archive":    { perc: -30,  mass: -30,  vox: -64  }, // outer state w/ FX
-  "Full Fruit": { perc: 0,    mass: 0,    vox: -1  }, // center core
+  "Archive":    { perc: -12,  mass: -12,  vox: -18  }, // outer state w/ FX
+  "Full Fruit": { perc: 0,    mass: 0,    vox: -6   }, // center core
 };
 
 const PRESETS = Object.fromEntries(
@@ -47,7 +48,7 @@ let gains = null;
 let master = null;
 
 // FX nodes
-let fx = null; // { dryGain, wetGain, delay, feedback, filter, shaper }
+let fx = null; // { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper }
 
 let isReady = false;
 let isPlaying = false;
@@ -131,7 +132,7 @@ async function onEnter() {
     master.gain.value = 1.0;
     master.connect(audioCtx.destination);
 
-    // FX bus: dry + wet (delay + lowpass + mild drive)
+    // FX bus: dry + wet (delay + highpass + lowpass + mild drive)
     const dryGain = audioCtx.createGain();
     const wetGain = audioCtx.createGain();
     dryGain.gain.value = 1.0;
@@ -143,10 +144,15 @@ async function onEnter() {
     const feedback = audioCtx.createGain();
     feedback.gain.value = FX.feedback;
 
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = FX.lowpassHz;
-    filter.Q.value = 0.7;
+    const highpass = audioCtx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = FX.highpassHz;
+    highpass.Q.value = 0.7;
+
+    const lowpass = audioCtx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = FX.lowpassHz;
+    lowpass.Q.value = 0.7;
 
     const shaper = audioCtx.createWaveShaper();
     shaper.curve = makeSoftClipCurve(FX.drive);
@@ -156,16 +162,17 @@ async function onEnter() {
     delay.connect(feedback);
     feedback.connect(delay);
 
-    // wet chain: delay -> filter -> shaper -> wetGain
-    delay.connect(filter);
-    filter.connect(shaper);
+    // wet chain: delay -> highpass -> lowpass -> shaper -> wetGain
+    delay.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(shaper);
     shaper.connect(wetGain);
 
     // to master
     dryGain.connect(master);
     wetGain.connect(master);
 
-    fx = { dryGain, wetGain, delay, feedback, filter, shaper };
+    fx = { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper };
 
     // Stem gain nodes
     gains = {
