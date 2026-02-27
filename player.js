@@ -72,6 +72,12 @@ controls.forEach(el => el.addEventListener("click", () => setState(el.dataset.st
 
 function setStatus(msg) {
   statusEl.textContent = msg;
+
+  const isLoading =
+    msg === "INITIALIZING" ||
+    msg === "LOADING";
+
+  statusEl.classList.toggle("loading", isLoading);
 }
 
 function setSpec(statusWord, sessionId) {
