@@ -13,7 +13,6 @@
           <h1>Experimental Mix Apparatus</h1>
           <p class="sub">BenjiMada Archive Terminal. Epistemic Congratulator #6.15</p>
         </div>
-        <div class="status" id="status">STANDBY</div>
       </header>
 
       <section class="stage">
@@ -67,8 +66,12 @@
         <div class="stateReadout mono" id="stateReadout">FULL FRUIT</div>
 
         <div class="controlStrip">
+          <!-- Status now lives with the controls -->
+          <div class="status mono" id="status">STANDBY</div>
+
           <button id="enterBtn" class="primary">Enter</button>
           <button id="playPauseBtn" class="ghost" disabled>Play</button>
+
           <div class="hint">
             Tap the orange to change state.
             <br />
