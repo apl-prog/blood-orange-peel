@@ -28,7 +28,7 @@ const PRESETS_DB = {
   "Narrator":   { perc: -120, mass: -100, vox: -6   },
   "Flesh":      { perc: -100, mass: 0,    vox: -120 },
   "Pulse":      { perc: -5,   mass: 0,    vox: -120 },
-  "Archive":    { perc: -12,  mass: -12,  vox: -18  }, // outer state w/ FX
+  "Archive":    { perc: -30,  mass: -30,  vox: -64  }, // outer state w/ FX
   "Full Fruit": { perc: 0,    mass: 0,    vox: -1  }, // center core
 };
 
