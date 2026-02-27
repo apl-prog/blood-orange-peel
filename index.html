@@ -24,9 +24,8 @@
           role="img"
           aria-label="Interactive orange with five wedges and a center core"
         >
-
           <defs>
-            <!-- Perfectly matched clip -->
+            <!-- Perfectly matched clip for anything that must not exceed the boundary -->
             <clipPath id="orangeClip">
               <circle cx="150" cy="150" r="120"></circle>
             </clipPath>
@@ -41,37 +40,28 @@
           <!-- Base fill -->
           <circle cx="150" cy="150" r="120" class="orange-fill"></circle>
 
-          <!-- Highlight -->
-          <circle cx="150" cy="150" r="120"
-            fill="url(#g)"
-            clip-path="url(#orangeClip)">
-          </circle>
+          <!-- Highlight overlay, clipped to the base circle -->
+          <circle cx="150" cy="150" r="120" fill="url(#g)" clip-path="url(#orangeClip)"></circle>
 
-          <!-- 5 outer wedges -->
-          <path class="wedge" data-state="Skeleton"
-            d="M150 150 L150 30 A120 120 0 0 1 264 112 Z"></path>
+          <!-- Wedges clipped so strokes can never render outside the circle -->
+          <g clip-path="url(#orangeClip)">
+            <path class="wedge" data-state="Skeleton"
+              d="M150 150 L150 30 A120 120 0 0 1 264 112 Z"></path>
+            <path class="wedge" data-state="Narrator"
+              d="M150 150 L264 112 A120 120 0 0 1 221 251 Z"></path>
+            <path class="wedge" data-state="Flesh"
+              d="M150 150 L221 251 A120 120 0 0 1 79 251 Z"></path>
+            <path class="wedge" data-state="Pulse"
+              d="M150 150 L79 251 A120 120 0 0 1 36 112 Z"></path>
+            <path class="wedge" data-state="Archive"
+              d="M150 150 L36 112 A120 120 0 0 1 150 30 Z"></path>
 
-          <path class="wedge" data-state="Narrator"
-            d="M150 150 L264 112 A120 120 0 0 1 221 251 Z"></path>
-
-          <path class="wedge" data-state="Flesh"
-            d="M150 150 L221 251 A120 120 0 0 1 79 251 Z"></path>
-
-          <path class="wedge" data-state="Pulse"
-            d="M150 150 L79 251 A120 120 0 0 1 36 112 Z"></path>
-
-          <path class="wedge" data-state="Archive"
-            d="M150 150 L36 112 A120 120 0 0 1 150 30 Z"></path>
-
-          <!-- Center core -->
-          <circle cx="150" cy="150" r="38"
-            class="orange-center"
-            data-state="Full Fruit">
-          </circle>
+            <!-- Center core (also clipped, harmless but consistent) -->
+            <circle cx="150" cy="150" r="38" class="orange-center" data-state="Full Fruit"></circle>
+          </g>
 
           <!-- Dedicated outer ring (single edge definition) -->
           <circle cx="150" cy="150" r="120" class="orange-ring"></circle>
-
         </svg>
 
         <div class="stateReadout mono" id="stateReadout">FULL FRUIT</div>
