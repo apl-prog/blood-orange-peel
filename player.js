@@ -15,11 +15,11 @@ const FLOOR_GAIN = dbToGain(FLOOR_DB);
 
 // Archive FX tuning (subtle by default)
 const FX = {
-  delayTime: 0.18,     // seconds
-  feedback: 0.22,      // 0..0.9
+  delayTime: 0.05,     // seconds
+  feedback: 0.6,      // 0..0.9
   wet: 0.18,           // 0..1 (how much FX you hear in Archive)
-  lowpassHz: 1800,     // Hz
-  drive: 0.02,         // 0..0.10 (subtle saturation)
+  lowpassHz: 1400,     // Hz
+  drive: 0.5,         // 0..0.10 (subtle saturation)
 };
 
 // Presets in dB (edit freely)
