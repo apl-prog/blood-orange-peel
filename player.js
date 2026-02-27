@@ -1,6 +1,6 @@
 // player.js — Experimental Mix Apparatus
 // 3 stems, 6 states total (5 outer + center Full Fruit), Web Audio preload, smooth ramps.
-// Adds an "Archive" FX bus (delay + highpass + lowpass + mild drive) only when state === "Archive".
+// Archive adds: delay + HP/LP + drive (wet), plus almost-mono output and slight delay-time warble.
 
 const FILES = {
   perc: "audio/percussion.m4a",
@@ -13,17 +13,22 @@ const RAMP_SECONDS = 0.05;
 const FLOOR_DB = -120; // allows true mute
 const FLOOR_GAIN = dbToGain(FLOOR_DB);
 
-// Archive FX tuning (subtle by default)
+// Archive FX tuning (your values)
 const FX = {
   delayTime: 0.05,     // seconds
   feedback: 0.22,      // 0..0.9
   wet: 0.14,           // 0..1 (how much FX you hear in Archive)
-  highpassHz: 600,     // Hz (new)
+  highpassHz: 600,     // Hz
   lowpassHz: 1800,     // Hz
-  drive: 0.4,         // 0..0.10 (subtle saturation)
+  drive: 0.4,          // your value (note: this is strong)
+
+  // NEW: mono + warble
+  monoAmount: 0.85,    // 0..1 (1 = fully mono)
+  warbleRate: 0.12,    // Hz (slow)
+  warbleDepth: 0.004,  // seconds (subtle)
 };
 
-// Presets in dB (edit freely)
+// Presets in dB (your values)
 const PRESETS_DB = {
   "Skeleton":   { perc: 0,    mass: -100, vox: -120 },
   "Narrator":   { perc: -120, mass: -100, vox: -3   },
@@ -45,10 +50,12 @@ let audioCtx = null;
 let buffers = null;
 let sources = null;
 let gains = null;
-let master = null;
 
-// FX nodes
-let fx = null; // { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper }
+// FX nodes + warble
+let fx = null; // { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper, lfo, lfoGain }
+
+// Output mono crossfade
+let out = null; // { postIn, normalOut, monoOut }
 
 let isReady = false;
 let isPlaying = false;
@@ -86,10 +93,20 @@ function setState(name) {
   stateReadoutEl.textContent = name.toUpperCase();
   nowEl.textContent = `State: ${name}`;
 
-  // Archive FX on/off
+  const isArchive = (name === "Archive");
+
+  // Archive FX wet on/off
   if (fx) {
-    const wetTarget = (name === "Archive") ? FX.wet : 0.0;
-    rampGain(fx.wetGain.gain, wetTarget);
+    rampGain(fx.wetGain.gain, isArchive ? FX.wet : 0.0);
+    // Warble depth on/off (LFO always running, depth goes to zero outside Archive)
+    rampGain(fx.lfoGain.gain, isArchive ? FX.warbleDepth : 0.0);
+  }
+
+  // Archive mono crossfade on/off
+  if (out) {
+    const monoAmt = isArchive ? FX.monoAmount : 0.0;
+    rampGain(out.normalOut.gain, 1.0 - monoAmt);
+    rampGain(out.monoOut.gain, monoAmt);
   }
 
   controls.forEach(el => el.classList.toggle("active", el.dataset.state === name));
@@ -127,16 +144,55 @@ async function onEnter() {
       vox:  await fetchDecode(FILES.vox),
     };
 
-    // Master
-    master = audioCtx.createGain();
-    master.gain.value = 1.0;
-    master.connect(audioCtx.destination);
+    // -------------------------
+    // OUTPUT STAGE (mono crossfade)
+    // -------------------------
+    const postIn = audioCtx.createGain();
+    postIn.gain.value = 1.0;
 
-    // FX bus: dry + wet (delay + highpass + lowpass + mild drive)
+    const normalOut = audioCtx.createGain();
+    const monoOut = audioCtx.createGain();
+    normalOut.gain.value = 1.0; // default
+    monoOut.gain.value = 0.0;
+
+    // Normal route
+    postIn.connect(normalOut);
+    normalOut.connect(audioCtx.destination);
+
+    // Mono route: split -> sum -> merge
+    const splitter = audioCtx.createChannelSplitter(2);
+    const lToSum = audioCtx.createGain();
+    const rToSum = audioCtx.createGain();
+    lToSum.gain.value = 0.5;
+    rToSum.gain.value = 0.5;
+
+    const monoSum = audioCtx.createGain();
+    const merger = audioCtx.createChannelMerger(2);
+
+    postIn.connect(splitter);
+    splitter.connect(lToSum, 0);
+    splitter.connect(rToSum, 1);
+    lToSum.connect(monoSum);
+    rToSum.connect(monoSum);
+
+    monoSum.connect(merger, 0, 0);
+    monoSum.connect(merger, 0, 1);
+
+    merger.connect(monoOut);
+    monoOut.connect(audioCtx.destination);
+
+    out = { postIn, normalOut, monoOut };
+
+    // -------------------------
+    // FX BUS: dry + wet into postIn
+    // -------------------------
     const dryGain = audioCtx.createGain();
     const wetGain = audioCtx.createGain();
     dryGain.gain.value = 1.0;
     wetGain.gain.value = 0.0; // default off
+
+    dryGain.connect(out.postIn);
+    wetGain.connect(out.postIn);
 
     const delay = audioCtx.createDelay(1.0);
     delay.delayTime.value = FX.delayTime;
@@ -168,13 +224,23 @@ async function onEnter() {
     lowpass.connect(shaper);
     shaper.connect(wetGain);
 
-    // to master
-    dryGain.connect(master);
-    wetGain.connect(master);
+    // Warble: LFO -> lfoGain -> delay.delayTime
+    const lfo = audioCtx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = FX.warbleRate;
 
-    fx = { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper };
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 0.0; // depth off until Archive
 
-    // Stem gain nodes
+    lfo.connect(lfoGain);
+    lfoGain.connect(delay.delayTime);
+    lfo.start();
+
+    fx = { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper, lfo, lfoGain };
+
+    // -------------------------
+    // STEM GAIN NODES
+    // -------------------------
     gains = {
       perc: audioCtx.createGain(),
       mass: audioCtx.createGain(),
@@ -300,7 +366,6 @@ function makeSessionId() {
 }
 
 function makeSoftClipCurve(amount) {
-  // amount ~0.0 to 0.1 for subtle
   const n = 44100;
   const curve = new Float32Array(n);
   const k = Math.max(0.0001, amount * 100);
