@@ -18,7 +18,7 @@ const FX = {
   delayTime: 0.05,     // seconds
   feedback: 0.22,      // 0..0.9
   wet: 0.18,           // 0..1 (how much FX you hear in Archive)
-  highpassHz: 250,     // Hz (new)
+  highpassHz: 600,     // Hz (new)
   lowpassHz: 1800,     // Hz
   drive: 0.4,         // 0..0.10 (subtle saturation)
 };
