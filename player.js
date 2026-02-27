@@ -1,6 +1,5 @@
 // player.js — Experimental Mix Apparatus
-// 3 stems, 6 states total (5 outer + center Full Fruit), Web Audio preload, smooth ramps.
-// Archive adds: delay + HP/LP + drive (wet), plus almost-mono output and slight delay-time warble.
+// Archive: FX wet + almost-mono output + slight delay-time warble.
 
 const FILES = {
   perc: "audio/percussion.m4a",
@@ -8,34 +7,31 @@ const FILES = {
   vox:  "audio/voxgtr.m4a",
 };
 
-// Settings
 const RAMP_SECONDS = 0.05;
-const FLOOR_DB = -120; // allows true mute
+const FLOOR_DB = -120;
 const FLOOR_GAIN = dbToGain(FLOOR_DB);
 
-// Archive FX tuning (your values)
+// Your current tuning
 const FX = {
-  delayTime: 0.05,     // seconds
-  feedback: 0.22,      // 0..0.9
-  wet: 0.14,           // 0..1 (how much FX you hear in Archive)
-  highpassHz: 600,     // Hz
-  lowpassHz: 1800,     // Hz
-  drive: 0.4,          // your value (note: this is strong)
+  delayTime: 0.05,
+  feedback: 0.22,
+  wet: 0.14,
+  highpassHz: 600,
+  lowpassHz: 1800,
+  drive: 0.4,
 
-  // NEW: mono + warble
-  monoAmount: 0.85,    // 0..1 (1 = fully mono)
-  warbleRate: 0.12,    // Hz (slow)
-  warbleDepth: 0.004,  // seconds (subtle)
+  monoAmount: 0.85,
+  warbleRate: 0.12,
+  warbleDepth: 0.004,
 };
 
-// Presets in dB (your values)
 const PRESETS_DB = {
   "Skeleton":   { perc: 0,    mass: -100, vox: -120 },
   "Narrator":   { perc: -120, mass: -100, vox: -3   },
   "Flesh":      { perc: -100, mass: 0,    vox: -120 },
   "Pulse":      { perc: -5,   mass: 0,    vox: -120 },
-  "Archive":    { perc: -12,  mass: -59,  vox: -18  }, // outer state w/ FX
-  "Full Fruit": { perc: 0,    mass: 0,    vox: -1   }, // center core
+  "Archive":    { perc: -12,  mass: -59,  vox: -18  },
+  "Full Fruit": { perc: 0,    mass: 0,    vox: -1   },
 };
 
 const PRESETS = Object.fromEntries(
@@ -51,11 +47,8 @@ let buffers = null;
 let sources = null;
 let gains = null;
 
-// FX nodes + warble
-let fx = null; // { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper, lfo, lfoGain }
-
-// Output mono crossfade
-let out = null; // { postIn, normalOut, monoOut }
+let fx = null;   // { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper, lfo, lfoGain }
+let out = null;  // { postIn, normalOut, monoOut }
 
 let isReady = false;
 let isPlaying = false;
@@ -63,7 +56,6 @@ let startAt = 0;
 let offset = 0;
 let currentState = "Full Fruit";
 
-// UI
 const statusEl = document.getElementById("status");
 const enterBtn = document.getElementById("enterBtn");
 const playPauseBtn = document.getElementById("playPauseBtn");
@@ -72,7 +64,6 @@ const specEl = document.getElementById("spec");
 const wrapEl = document.getElementById("wrap");
 const stateReadoutEl = document.getElementById("stateReadout");
 
-// Wedges + center core are all [data-state]
 const controls = Array.from(document.querySelectorAll("[data-state]"));
 
 enterBtn.addEventListener("click", onEnter);
@@ -81,6 +72,11 @@ controls.forEach(el => el.addEventListener("click", () => setState(el.dataset.st
 
 function setStatus(msg) {
   statusEl.textContent = msg;
+}
+
+function setSpec(statusWord, sessionId) {
+  const sid = sessionId || "----";
+  specEl.innerHTML = `SESSION: ${sid} · CHANNELS: 3 · CONFIGS: 5 · STATUS: ${statusWord} · RECOVERY TEAM: <a href="https://liberandos.com" target="_blank" class="la5">LA5</a>`;
 }
 
 function setState(name) {
@@ -95,14 +91,11 @@ function setState(name) {
 
   const isArchive = (name === "Archive");
 
-  // Archive FX wet on/off
   if (fx) {
     rampGain(fx.wetGain.gain, isArchive ? FX.wet : 0.0);
-    // Warble depth on/off (LFO always running, depth goes to zero outside Archive)
     rampGain(fx.lfoGain.gain, isArchive ? FX.warbleDepth : 0.0);
   }
 
-  // Archive mono crossfade on/off
   if (out) {
     const monoAmt = isArchive ? FX.monoAmount : 0.0;
     rampGain(out.normalOut.gain, 1.0 - monoAmt);
@@ -144,22 +137,18 @@ async function onEnter() {
       vox:  await fetchDecode(FILES.vox),
     };
 
-    // -------------------------
-    // OUTPUT STAGE (mono crossfade)
-    // -------------------------
+    // Output stage (mono crossfade)
     const postIn = audioCtx.createGain();
     postIn.gain.value = 1.0;
 
     const normalOut = audioCtx.createGain();
     const monoOut = audioCtx.createGain();
-    normalOut.gain.value = 1.0; // default
+    normalOut.gain.value = 1.0;
     monoOut.gain.value = 0.0;
 
-    // Normal route
     postIn.connect(normalOut);
     normalOut.connect(audioCtx.destination);
 
-    // Mono route: split -> sum -> merge
     const splitter = audioCtx.createChannelSplitter(2);
     const lToSum = audioCtx.createGain();
     const rToSum = audioCtx.createGain();
@@ -183,13 +172,11 @@ async function onEnter() {
 
     out = { postIn, normalOut, monoOut };
 
-    // -------------------------
-    // FX BUS: dry + wet into postIn
-    // -------------------------
+    // FX bus: dry + wet into postIn
     const dryGain = audioCtx.createGain();
     const wetGain = audioCtx.createGain();
     dryGain.gain.value = 1.0;
-    wetGain.gain.value = 0.0; // default off
+    wetGain.gain.value = 0.0;
 
     dryGain.connect(out.postIn);
     wetGain.connect(out.postIn);
@@ -214,11 +201,9 @@ async function onEnter() {
     shaper.curve = makeSoftClipCurve(FX.drive);
     shaper.oversample = "2x";
 
-    // feedback loop: delay -> feedback -> delay
     delay.connect(feedback);
     feedback.connect(delay);
 
-    // wet chain: delay -> highpass -> lowpass -> shaper -> wetGain
     delay.connect(highpass);
     highpass.connect(lowpass);
     lowpass.connect(shaper);
@@ -230,7 +215,7 @@ async function onEnter() {
     lfo.frequency.value = FX.warbleRate;
 
     const lfoGain = audioCtx.createGain();
-    lfoGain.gain.value = 0.0; // depth off until Archive
+    lfoGain.gain.value = 0.0;
 
     lfo.connect(lfoGain);
     lfoGain.connect(delay.delayTime);
@@ -238,31 +223,28 @@ async function onEnter() {
 
     fx = { dryGain, wetGain, delay, feedback, highpass, lowpass, shaper, lfo, lfoGain };
 
-    // -------------------------
-    // STEM GAIN NODES
-    // -------------------------
+    // Stem gain nodes
     gains = {
       perc: audioCtx.createGain(),
       mass: audioCtx.createGain(),
       vox:  audioCtx.createGain(),
     };
 
-    // Dry routing
     gains.perc.connect(fx.dryGain);
     gains.mass.connect(fx.dryGain);
     gains.vox.connect(fx.dryGain);
 
-    // FX send (post-gain tap)
     gains.perc.connect(fx.delay);
     gains.mass.connect(fx.delay);
     gains.vox.connect(fx.delay);
 
     isReady = true;
 
-    // Terminal activation + spec
     wrapEl.classList.remove("standby");
     wrapEl.classList.add("active");
-    specEl.textContent = `SESSION: ${makeSessionId()} · CHANNELS: 3 · CONFIGS: 5 · STATUS: ACTIVE`;
+
+    const sid = makeSessionId();
+    setSpec("ACTIVE", sid);
 
     playPauseBtn.disabled = false;
 
@@ -272,7 +254,7 @@ async function onEnter() {
     console.error(err);
     setStatus("ERROR");
     enterBtn.disabled = false;
-    specEl.textContent = "SESSION: ---- · CHANNELS: 3 · CONFIGS: 5 · STATUS: ERROR";
+    setSpec("ERROR", "----");
   }
 }
 
@@ -302,7 +284,8 @@ function buildSources() {
       offset = 0;
       playPauseBtn.textContent = "Play";
       setStatus("FINISHED");
-      specEl.textContent = specEl.textContent.replace(/STATUS:\s*\w+/i, "STATUS: COMPLETE");
+      // preserve link
+      specEl.innerHTML = specEl.innerHTML.replace(/STATUS:\s*\w+/i, "STATUS: COMPLETE");
     }
   };
 
@@ -329,14 +312,14 @@ function togglePlay() {
     isPlaying = true;
     playPauseBtn.textContent = "Pause";
     setStatus("RUNNING");
-    specEl.textContent = specEl.textContent.replace(/STATUS:\s*\w+/i, "STATUS: RUNNING");
+    specEl.innerHTML = specEl.innerHTML.replace(/STATUS:\s*\w+/i, "STATUS: RUNNING");
   } else {
     offset = audioCtx.currentTime - startAt;
     safeStopAll();
     isPlaying = false;
     playPauseBtn.textContent = "Play";
     setStatus("HOLD");
-    specEl.textContent = specEl.textContent.replace(/STATUS:\s*\w+/i, "STATUS: HOLD");
+    specEl.innerHTML = specEl.innerHTML.replace(/STATUS:\s*\w+/i, "STATUS: HOLD");
   }
 }
 
@@ -377,9 +360,9 @@ function makeSoftClipCurve(amount) {
   return curve;
 }
 
-// Default visuals before entering
 (function initUI() {
   stateReadoutEl.textContent = "FULL FRUIT";
   nowEl.textContent = "State: Full Fruit";
+  // initial footer text is OK; becomes linked on Enter
   controls.forEach(el => el.classList.toggle("active", el.dataset.state === "Full Fruit"));
 })();
