@@ -31,8 +31,11 @@
             </radialGradient>
           </defs>
 
-          <circle cx="150" cy="150" r="121.5" class="orange-base"></circle>
-          <circle cx="150" cy="150" r="120" fill="url(#g)"></circle>
+        <!-- Single base circle (stroke + base tone) -->
+<circle cx="150" cy="150" r="120" class="orange-base"></circle>
+
+<!-- Highlight overlay clipped to the exact same circle -->
+<circle cx="150" cy="150" r="120" fill="url(#g)" clip-path="url(#orangeClip)"></circle>
 
           <!-- 5 outer wedges -->
           <path class="wedge" data-state="Skeleton"
