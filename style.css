@@ -163,3 +163,40 @@ button:disabled { opacity: 0.5; }
   text-shadow: 0 0 10px rgba(255, 107, 61, 0.18);
   text-decoration: underline;
 }
+/* Status readout lives by the buttons now */
+.controlStrip .status{
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 6px 0 2px;
+}
+
+/* Subtle blink */
+.controlStrip .status.loading{
+  color: var(--accent);
+  animation: statusPulse 1.15s ease-in-out infinite;
+}
+
+/* Terminal dots after the text */
+.controlStrip .status.loading::after{
+  content: "";
+  display: inline-block;
+  width: 1.5em;              /* reserves space so layout doesn’t shift */
+  margin-left: 0.25em;
+  text-align: left;
+  animation: statusDots 1.1s steps(4, end) infinite;
+  opacity: 0.9;
+}
+
+@keyframes statusPulse{
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@keyframes statusDots{
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+  100% { content: ""; }
+}
